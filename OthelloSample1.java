@@ -1,7 +1,9 @@
+import java.util.ArrayList;
+import java.util.List;
+
 public class OthelloSample1 {
 	private int row = 8;	//オセロ盤の縦横マス数(2の倍数のみ)
 	private String [] grids = new String [row * row]; //局面情報
-	private String [] pred_grids=new String[row*row]; //置くことのできる場所の情報
 	private String turn; //手番
 
 	// コンストラクタ
@@ -15,32 +17,11 @@ public class OthelloSample1 {
 			grids[center - row / 2    ] = "white";
 			grids[center + row / 2 - 1] = "white";
 		}
-		
-		for(int i=0;i<row*row;i++) {
-			pred_grids[i]="cannot_put";
-		}
 	}
 
 	// メソッド
 	public String checkWinner(){	// 勝敗を判断
-		String winner;	  //勝者
-		int blacknum=0;	  //黒のコマの数
-		int whitenum=0;	  //白のコマの数
-		for(int i=0;i<row*row;i++) {
-			if("black".equals(grids[i])) {
-				blacknum++;
-			}else if("white".equals(grids[i])) {
-				whitenum++;
-			}
-		}
-		if(blacknum>whitenum) {
-			winner="black";
-		}else if(whitenum>blacknum) {
-			winner="white";
-		}else {
-			winner="draw";
-		}
-		return winner;
+		return "black";
 	}
 	public String getTurn(){ // 手番情報を取得
 		return turn;
@@ -48,119 +29,105 @@ public class OthelloSample1 {
 	public String [] getGrids(){ // 局面情報を取得
 		return grids;
 	}
-	public String [] getPred_grids() {
-		return pred_grids;
-	}
-	public void changeTurn(){ //　手番を変更
-		if("black".equals(turn)) {
-			turn="white";
-		}else if("white".equals(turn)) {
-			turn="black";
-		}
-	}
-	
-	public boolean isPass() {	//パスかどうかの判断
-		boolean ispass=true;
-		for(int i=0;i<row*row;i++) {
-			if("can_put".equals(pred_grids[i])) {
-				ispass=false;
-			}
-		}
-		
-		return ispass;
+	// OthelloSample1.java 内に追加
+	public void changeTurn() {
+	    if (turn.equals("black")) {
+	        turn = "white";
+	    } else {
+	        turn = "black";
+	    }
 	}
 	public boolean isGameover(){	// 対局終了を判断
-		boolean gameover=false;
-		set_pred_grids();
-		if(isPass()) {
-			gameover=true;
-		}
-		changeTurn();
-		set_pred_grids();
-		if(isPass()) {
-			gameover=true;
-		}		
-		return gameover;
+		
+		// 黒が置けるかチェック
+	    boolean blackCanMove = !getValidMoves("black").isEmpty();
+	    // 白が置けるかチェック
+	    boolean whiteCanMove = !getValidMoves("white").isEmpty();
+	    
+	    // 両方置けなければゲーム終了
+	    return !blackCanMove && !whiteCanMove;
 	}
-	public void set_pred_grids() {	//盤面上の置くことのできる場所の設定
-		for(int i=0;i<row*row;i++) {
-			pred_grids[i]="cannot_put";
-		}
+	public boolean putStone(int i, String color, boolean effect_on){ // (操作を)局面に反映
 		
-		for(int i=0;i<8;i++) {
-			for(int j=0;j<8;j++) {
-				int flipnum=0;
-				flipnum=pred_putStone(j,i,0,-1);
-				if(flipnum>0) {
-					pred_grids[i*8+j]="can_put";
-				}
-			}
-		}
-	}
-	public int pred_putStone(int x,int y,int direction,int flip_num) {	//置くことができるかの確認
-		int[] dx= {-1,0,1,-1,1,-1,0,1};
-		int[] dy= {-1,-1,-1,0,0,1,1,1};
-		int total_num=0;
-		if(x<0||x>7||y<0||y>7) {
-			return 0;
-		}
-		if(flip_num==-1) {
-			if(!"board".equals(grids[y*8+x])) {
-				return 0;
-			}
-			for(int i=0;i<8;i++) {
-				flip_num=0;
-				flip_num=pred_putStone(x+dx[i],y+dy[i],i,flip_num);
-				total_num+=flip_num;
-			}
-			flip_num=total_num;
-		}else if(turn.equals(grids[y*8+x])) {
-			return flip_num;
-		}else if("board".equals(grids[y*8+x])) {
-			return 0;
-		}else {
-			flip_num++;
-			flip_num=pred_putStone(x+dx[direction],y+dy[direction],direction,flip_num);
-		}
-		
-		return flip_num;
-		
-	}
-	public boolean putStone(int x,int y,int direction,boolean first,boolean success_flip){ // (操作を)局面に反映
-		int[] dx= {-1,0,1,-1,1,-1,0,1};
-		int[] dy= {-1,-1,-1,0,0,1,1,1};
-		boolean success_total=false;
-		if(x<0||x>7||y<0||y>7) {
-			return false;
-		}
-		
-		if(first) {
-			for(int i=0;i<8;i++) {
-				grids[y*8+x]=turn;
-				success_flip=false;
-				success_flip=putStone(x+dx[i],y+dy[i],i,false,success_flip);
-				if(success_flip) {
-					success_total=true;
-				}
-			}
-		}else if(turn.equals(grids[y*8+x])) {
-			return true;
-		}else if("board".equals(grids[y*8+x])) {
-			return false;
-		}else {
-			success_flip=putStone(x+dx[direction],y+dy[direction],direction,false,success_flip);
-		}
-		
-		if(success_flip||success_total) {
-			grids[y*8+x]=turn;
-			return true;
-		}else {
-			return false;
-		}
-		
+		if (!grids[i].equals("board")) return false; // すでに石がある
+
+	    int r = i / row;
+	    int c = i % row;
+	    boolean canPut = false;
+
+	    // 8方向のオフセット（dx, dy）
+	    int[] dx = {-1, -1, -1, 0, 0, 1, 1, 1};
+	    int[] dy = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+	    String opponent = color.equals("black") ? "white" : "black";
+
+	    for (int d = 0; d < 8; d++) {
+	        int x = r + dx[d];
+	        int y = c + dy[d];
+	        boolean hasOpponentBetween = false;
+
+	        // 指定方向に相手の石が続く限り進む
+	        while (x >= 0 && x < row && y >= 0 && y < row && grids[x * row + y].equals(opponent)) {
+	            x += dx[d];
+	            y += dy[d];
+	            hasOpponentBetween = true;
+	        }
+
+	        // 相手の石を挟んで自分の石があった場合
+	        if (hasOpponentBetween && x >= 0 && x < row && y >= 0 && y < row && grids[x * row + y].equals(color)) {
+	            canPut = true;
+	            if (effect_on) { // 実際に石をひっくり返す処理
+	                int tx = r + dx[d];
+	                int ty = c + dy[d];
+	                while (tx != x || ty != y) {
+	                    grids[tx * row + ty] = color;
+	                    tx += dx[d];
+	                    ty += dy[d];
+	                }
+	            }
+	        }
+	    }
+
+	    if (canPut && effect_on) {
+	        grids[i] = color; // 最後にクリックした場所に石を置く
+	    }
+	    return canPut;
 		
 	}
+	
+	public List<Integer> getValidMoves(String color) {
+        List<Integer> moves = new ArrayList<>();
+        for (int i = 0; i < row * row; i++) if (putStone(i, color, false)) moves.add(i);
+        return moves;
+    }
+	
+	public int getCount(String color) {
+        int cnt = 0;
+        for (String s : grids) if (s.equals(color)) cnt++;
+        return cnt;
+    }
+	
 	public int getRow(){ //縦横のマス数を取得
 		return row;
+	}
+	
+	public String getWinnerMessage() {
+	    int black = getCount("black");
+	    int white = getCount("white");
+	    
+	    if (black > white) {
+	        return "黒の勝ち！ (黒:" + black + " 対 白:" + white + ")";
+	    } else if (white > black) {
+	        return "白の勝ち！ (黒:" + black + " 対 白:" + white + ")";
+	    } else {
+	        return "引き分け！ (" + black + " 対 " + white + ")";
+	    }
+	}
+	
+	// OthelloSample1.java 内に追加
+	public void setGrid(int pos, String color) {
+	    if (pos >= 0 && pos < grids.length) {
+	        grids[pos] = color;
+	    }
 	}
 }

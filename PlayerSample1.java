@@ -1,4 +1,6 @@
 
+// 相内陵汰　ver1
+
 public class PlayerSample1 {
 
 	private String myName = ""; //プレイヤ名

@@ -1,3 +1,6 @@
+
+//相内陵汰　ver1
+
 //パッケージのインポート
 import java.awt.Color;
 import java.awt.Container;
