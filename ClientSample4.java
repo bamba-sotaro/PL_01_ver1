@@ -32,7 +32,9 @@ public class ClientSample4 extends JFrame implements MouseListener {
 	private Receiver receiver; //データ受信用オブジェクト
 	private OthelloSample1 game; //Othelloオブジェクト
 	private PlayerSample1 player; //Playerオブジェクト
+	private Socket socket;
 	private String myColor = "";
+	private static boolean flag=true;
 
 	// コンストラクタ
 	public ClientSample4(OthelloSample1 game, PlayerSample1 player) { //OthelloオブジェクトとPlayerオブジェクトを引数とする
@@ -112,7 +114,6 @@ public class ClientSample4 extends JFrame implements MouseListener {
 
 	// メソッド
 	public void connectServer(String ipAddress, int port){	// サーバに接続
-		Socket socket = null;
 		try {
 			socket = new Socket(ipAddress, port); //サーバ(ipAddress, port)に接続
 			out = new PrintWriter(socket.getOutputStream(), true); //データ送信用オブジェクトの用意
@@ -212,6 +213,7 @@ public class ClientSample4 extends JFrame implements MouseListener {
 	                String result = game.getWinnerMessage();
 	                resultLabel.setText("対局終了");
 	                JOptionPane.showMessageDialog(this, result, "ゲーム終了", JOptionPane.INFORMATION_MESSAGE);
+	                nextGame();
 	            } else {
 	                // 自分がパスになる場合の自動処理
 	                checkMyPass();
@@ -327,10 +329,90 @@ public class ClientSample4 extends JFrame implements MouseListener {
 	public void mouseExited(MouseEvent e) {}//マウスがオブジェクトから出たときの処理
 	public void mousePressed(MouseEvent e) {}//マウスでオブジェクトを押したときの処理
 	public void mouseReleased(MouseEvent e) {}//マウスで押していたオブジェクトを離したときの処理
+	
+	public static boolean isCPU() {	//CPU対戦かどうか　対CPUならtrue 対人ならfalseをかえす
+		String[] options= {"対人","対CPU"};
+		int result=JOptionPane.showOptionDialog(	//対戦方式の選択肢の表示
+				null,
+				"対戦方式を選択してください",
+				"対戦方式選択",
+				JOptionPane.DEFAULT_OPTION,
+				JOptionPane.QUESTION_MESSAGE,
+				null,
+				options,
+				options[0]
+		);
+		
+		if(result==1) {
+			return true;
+		}else if(result==-1){
+			System.exit(0);
+		}
+			return false;
+	}
+	
+	public static int selectCPU() {	//CPUの種類の選択 CPU1,CPU2,CPU3に対してそれぞれint型で1,2,3を返す
+		String[] options= {"CPU1","CPU2","CPU3"};
+		int result=JOptionPane.showOptionDialog(	//CPU種類の選択肢の表示
+				null,
+				"CPUの種類を選択してください",
+				"CPU選択",
+				JOptionPane.DEFAULT_OPTION,
+				JOptionPane.QUESTION_MESSAGE,
+				null,
+				options,
+				options[0]);
+		
+		return result+1;
+	}
+	
+	public void nextGame() {	//再戦の確認
+		String[] options= {"YES","NO"};
+		int result=JOptionPane.showOptionDialog(	//再戦するかどうかの選択肢の表示
+				this,
+				"再戦しますか？",
+				"再戦選択",
+				JOptionPane.DEFAULT_OPTION,
+				JOptionPane.QUESTION_MESSAGE,
+				null,
+				options,
+				options[0]);
+		if(result==0) {	//再戦する場合
+			try {
+				socket.close();
+			}catch(IOException e) {}
+			String myName = JOptionPane.showInputDialog(null,"名前を入力してください","名前の入力",JOptionPane.QUESTION_MESSAGE);
+			if(myName.equals("")){
+				myName = "No name";//名前がないときは，"No name"とする
+			}
+			PlayerSample1 player = new PlayerSample1(); //プレイヤオブジェクトの用意(ログイン)
+			player.setName(myName); //名前を受付
+			OthelloSample1 game = new OthelloSample1(); //オセロオブジェクトを用意
+			ClientSample4 oclient = new ClientSample4(game, player); //引数としてオセロオブジェクトを渡す
+			oclient.setVisible(true);
+			oclient.connectServer("localhost", 10000);
+			dispose();
+		}else {	//再戦しない場合
+			dispose();
+		}
+	}
+	
 
 	//テスト用のmain
 	public static void main(String args[]){
+		int CPU_variants=0;	//CPUの種類
+		if(isCPU()) {	//対CPUの場合
+			CPU_variants=selectCPU();
+			if(CPU_variants==1) {	//CPU1種類目の処理(未設定)
+				
+			}else if(CPU_variants==2) {	//CPU2種類目の処理(未設定)
+				
+			}else if(CPU_variants==3) {	//CPU3種類目の処理(未設定)
+				
+			}
+		}else {
 		//ログイン処理
+		
 		String myName = JOptionPane.showInputDialog(null,"名前を入力してください","名前の入力",JOptionPane.QUESTION_MESSAGE);
 		if(myName.equals("")){
 			myName = "No name";//名前がないときは，"No name"とする
@@ -341,5 +423,6 @@ public class ClientSample4 extends JFrame implements MouseListener {
 		ClientSample4 oclient = new ClientSample4(game, player); //引数としてオセロオブジェクトを渡す
 		oclient.setVisible(true);
 		oclient.connectServer("localhost", 10000);
+		}
 	}
 }

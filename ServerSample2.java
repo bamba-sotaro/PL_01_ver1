@@ -42,11 +42,14 @@ public class ServerSample2 {
                     if (inputLine != null) {
                         // メッセージを転送
                         forwardMessage(inputLine, playerNo);
+                    }else {
+                    	break;
                     }
                 }
             } catch (IOException e) {
                 System.err.println("プレイヤ " + playerNo + " との接続が切れました。");
-                online[playerNo] = false;
+            }finally {
+            	online[playerNo]=false;
             }
         }
     }
@@ -55,7 +58,11 @@ public class ServerSample2 {
     try {
         ServerSocket ss = new ServerSocket(port);
         System.out.println("サーバが起動しました。ポート:" + port);
-
+        
+        while(true) {	
+        	out = new PrintWriter[2];	//それぞれの初期化
+            receiver = new Receiver[2];
+            online = new boolean[2];
         // 2人接続するまでループ
         for (int i = 0; i < 2; i++) {
             System.out.println("プレイヤ " + i + " の接続を待っています...");
@@ -74,6 +81,11 @@ public class ServerSample2 {
         // 2人揃ったら対戦開始の合図を送る（オプション）
         sendColor();
         System.out.println("2人のプレイヤが揃いました。対戦を開始します。");
+        
+        //接続が切れるのを待つ
+        receiver[0].join();
+        receiver[1].join();
+        }
 
     } catch (Exception e) {
         System.err.println("接続受付中にエラーが発生しました: " + e);
