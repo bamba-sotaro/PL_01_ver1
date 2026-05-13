@@ -165,23 +165,8 @@ public class CPU3 extends JFrame{
 	        
 	        if (game.putStone(pos, currentColor, true)) {
 	            game.changeTurn(); // 手番交代
-	            updateDisp();
-	            
-	            // --- 勝利判定（終局チェック） ---
-	            if (game.isGameover()) {
-	                String result = game.getWinnerMessage();
-	                resultLabel.setText("対局終了");
-	                JOptionPane.showMessageDialog(this, result, "ゲーム終了", JOptionPane.INFORMATION_MESSAGE);
-	            } else {
-	                // 自分がパスになる場合の自動処理
-	                checkMyPass();
-	            }
-	        }
-            //つけたし
-			if(game.getTurn().equals(myColor)){
-				choicePos();
 			}
-	    } catch (NumberFormatException e) {
+		} catch (NumberFormatException e) {
 	        if (msg.equals("pass")) {
 	            game.changeTurn();
 	            updateDisp();
@@ -191,11 +176,33 @@ public class CPU3 extends JFrame{
 	            }
 	        }
 	    }
+		 updateDisp();
+	            
+	    // --- 勝利判定（終局チェック） ---
+	    if (game.isGameover()) {
+			String result = game.getWinnerMessage();
+	        resultLabel.setText("対局終了");
+	        //CPUのため結果を出さない
+			//JOptionPane.showMessageDialog(this, result, "ゲーム終了", JOptionPane.INFORMATION_MESSAGE);
+			return;
+	    }/*else {
+			// 自分がパスになる場合の自動処理
+	        checkMyPass();
+	    }*/
+		//つけたし
+		if(game.getTurn().equals(myColor)){
+			choicePos();
+		}
 	}	
 	
     private void choicePos(){
+		//追加
+		//自分の番でないならなにもしない
+		if (!game.getTurn().equals(myColor)) return;
+
         java.util.List<Integer> canmove = game.getValidMoves(myColor);
         if(canmove.isEmpty()){
+			//おける場所がない場合はパス
 			sendMessage("pass");
 			return;
 		}
@@ -223,8 +230,14 @@ public class CPU3 extends JFrame{
 				//CPUだから確認しない
 	            //JOptionPane.showMessageDialog(this, "置ける場所がないのでパスします。");
 	            //つけたし
+				String current = game.getTurn();
+				String opponent =current.equals("black") ? "white" : "black";
+				if (game.getValidMoves(current).isEmpty() && game.getValidMoves(opponent).isEmpty()) {
+					JOptionPane.showMessageDialog(this,game.getWinnerMessage());
+					return;
+				}
 				game.changeTurn();
-				sendMessage("pass"); // サーバ経由で相手に通知
+				sendMessage("pass");
 				updateDisp();
 	        }
 	    }
@@ -332,7 +345,8 @@ public class CPU3 extends JFrame{
 		player.setName(myName); //名前を受付
 		OthelloSample1 game = new OthelloSample1(); //オセロオブジェクトを用意
 		CPU3 oclient = new CPU3(game, player); //引数としてオセロオブジェクトを渡す
-		oclient.setVisible(true);
+		//CPUは見えなくてもいい
+		oclient.setVisible(false);
 		oclient.connectServer("localhost", 10000);
 	}
 }
