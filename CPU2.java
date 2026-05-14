@@ -1,0 +1,368 @@
+//junki
+//パッケージのインポート
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Font;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+
+public class CPU2 extends JFrame{
+	private JButton buttonArray[];//オセロ盤用のボタン配列
+	private JButton stop, pass; //停止、スキップ用ボタン
+	private JLabel colorLabel; // 色表示用ラベル
+	private JLabel turnLabel; // 手番表示用ラベル
+	private JLabel infoLabel, resultLabel;
+	private Container c; // コンテナ
+	private ImageIcon blackIcon, whiteIcon, boardIcon, hintIcon; //アイコン
+	private PrintWriter out;//データ送信用オブジェクト
+	private Receiver receiver; //データ受信用オブジェクト
+	private OthelloSample1 game; //Othelloオブジェクト
+	private PlayerSample1 player; //Playerオブジェクト
+	private String myColor = "";
+
+    private int []pointTable={
+    };
+
+	// コンストラクタ
+	public CPU2(OthelloSample1 game, PlayerSample1 player) { //OthelloオブジェクトとPlayerオブジェクトを引数とする
+		this.game = game; //引数のOthelloオブジェクトを渡す
+		this.player = player; //引数のPlayerオブジェクトを渡す
+		String [] grids = game.getGrids(); //getGridメソッドにより局面情報を取得
+		int row = game.getRow(); //getRowメソッドによりオセロ盤の縦横マスの数を取得
+		//ウィンドウ設定
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//ウィンドウを閉じる場合の処理
+		setTitle("ネットワーク対戦型オセロゲーム");//ウィンドウのタイトル
+		setSize(row * 45 + 10, row * 45 + 200);//ウィンドウのサイズを設定
+		c = getContentPane();//フレームのペインを取得
+		//アイコン設定(画像ファイルをアイコンとして使う)
+		whiteIcon = new ImageIcon("White.jpg");
+		blackIcon = new ImageIcon("Black.jpg");
+		boardIcon = new ImageIcon("GreenFrame.jpg");
+		hintIcon = new ImageIcon("blue.jpg"); // 水色の小丸画像
+		c.setLayout(null);//
+		//オセロ盤の生成
+		buttonArray = new JButton[row * row];//ボタンの配列を作成
+		for(int i = 0 ; i < row * row ; i++){
+			if(grids[i].equals("black")){ buttonArray[i] = new JButton(blackIcon);}//盤面状態に応じたアイコンを設定
+			if(grids[i].equals("white")){ buttonArray[i] = new JButton(whiteIcon);}//盤面状態に応じたアイコンを設定
+			if(grids[i].equals("board")){ buttonArray[i] = new JButton(boardIcon);}//盤面状態に応じたアイコンを設定
+			c.add(buttonArray[i]);//ボタンの配列をペインに貼り付け
+			// ボタンを配置する
+			int x = (i % row) * 45;
+			int y = (int) (i / row) * 45;
+			buttonArray[i].setBounds(x, y, 45, 45);//ボタンの大きさと位置を設定する．
+			//buttonArray[i].addMouseListener(this);//マウス操作を認識できるようにする
+			buttonArray[i].setActionCommand(Integer.toString(i));//ボタンを識別するための名前(番号)を付加する
+		}
+		
+		infoLabel = new JLabel("接続待機中...", JLabel.CENTER);
+        infoLabel.setBounds(10, row * 45 + 20, row * 45, 30);
+        infoLabel.setBorder(javax.swing.BorderFactory.createLineBorder(Color.BLACK));
+        c.add(infoLabel);
+        
+        
+		
+		JButton quitBtn = new JButton("投了");
+        quitBtn.setBounds(10, row * 45 + 60, row * 45, 40);
+        quitBtn.addActionListener(e -> System.exit(0));
+        add(quitBtn);
+        
+        resultLabel = new JLabel("", JLabel.CENTER);
+        resultLabel.setBounds(10, row * 45 + 110, row * 45, 30);
+        resultLabel.setFont(new Font("MS UI Gothic", Font.BOLD, 16));
+        c.add(resultLabel);
+        
+        updateDisp();
+        
+	}
+
+	// メソッド
+	public void connectServer(String ipAddress, int port){	// サーバに接続
+	}
+
+	public void sendMessage(String msg){	// サーバに操作情報を送信
+		out.println(msg);//送信データをバッファに書き出す
+		out.flush();//送信データを送る
+		System.out.println("サーバにメッセージ " + msg + " を送信しました"); //テスト標準出力
+	}
+
+	// データ受信用スレッド(内部クラス)
+	class Receiver extends Thread {
+		private InputStreamReader sisr; //受信データ用文字ストリーム
+		private BufferedReader br; //文字ストリーム用のバッファ
+
+		// 内部クラスReceiverのコンストラクタ
+		Receiver (Socket socket){
+			try{
+				sisr = new InputStreamReader(socket.getInputStream()); //受信したバイトデータを文字ストリームに
+				br = new BufferedReader(sisr);//文字ストリームをバッファリングする
+			} catch (IOException e) {
+				System.err.println("データ受信時にエラーが発生しました: " + e);
+			}
+		}
+		// 内部クラス Receiverのメソッド
+		public void run(){
+			try{
+				while(true) {//データを受信し続ける
+					String inputLine = br.readLine();//受信データを一行分読み込む
+					if (inputLine != null){//データを受信したら
+						receiveMessage(inputLine);//データ受信用メソッドを呼び出す
+					}
+				}
+			} catch (IOException e){
+				System.err.println("データ受信時にエラーが発生しました: " + e);
+			}
+		}
+	}
+
+	public void receiveMessage(String msg) {
+	    System.out.println("受信: " + msg);
+
+	    // 色割り当ての判定
+	    if (msg.equals("black") || msg.equals("white")) {
+	        this.myColor = msg;
+	        updateDisp();
+	        return;
+	    }
+
+	    // 石を置く動作の判定
+	    try {
+	        int pos = Integer.parseInt(msg);
+	        String currentColor = game.getTurn();
+	        
+	        if (game.putStone(pos, currentColor, true)) {
+	            game.changeTurn(); // 手番交代
+			}
+		} catch (NumberFormatException e) {
+	        if (msg.equals("pass")) {
+	            game.changeTurn();
+	            updateDisp();
+	            // パスされた後、自分がさらに置けない可能性もあるので再度チェック
+	            if (game.isGameover()) {
+	                JOptionPane.showMessageDialog(this, game.getWinnerMessage());
+	            }
+	        }
+	    }
+		 updateDisp();
+	            
+	    // --- 勝利判定（終局チェック） ---
+	    if (game.isGameover()) {
+			String result = game.getWinnerMessage();
+	        resultLabel.setText("対局終了");
+	        //CPUのため結果を出さない
+			//JOptionPane.showMessageDialog(this, result, "ゲーム終了", JOptionPane.INFORMATION_MESSAGE);
+			return;
+	    }/*else {
+			// 自分がパスになる場合の自動処理
+	        checkMyPass();
+	    }*/
+		//つけたし
+		if(game.getTurn().equals(myColor)){
+			choicePos();
+		}
+	}	
+	
+   private void choicePos() {
+    // 自分の番でないならなにもしない
+    if (!game.getTurn().equals(myColor)) return;
+
+    // 置ける場所のリストを取得
+    java.util.List<Integer> canmove = game.getValidMoves(myColor);
+    
+    if (canmove.isEmpty()) {
+        sendMessage("pass");
+        return;
+    }
+
+    int pos_best = -1;
+    int max_flips = -1;
+
+    // 置ける場所すべてに対して、ひっくり返る数を計算する
+    for (int pos : canmove) {
+        // OthelloSample1に実装されているcountFlips(またはそれに準ずる計測メソッド)を呼び出す
+        // もしcountFlipsがない場合は、この下にあるシミュレーション用ロジックを使用します
+        int flips = countExpectedFlips(pos, myColor);
+        
+        if (flips > max_flips) {
+            max_flips = flips;
+            pos_best = pos;
+        }
+    }
+
+    if (pos_best != -1) {
+        sendMessage(Integer.toString(pos_best));
+    }
+}
+
+/**
+ * シミュレーション用：指定したposに置いたときに何個石がひっくり返るかを数える
+ */
+private int countExpectedFlips(int pos, String color) {
+    int totalFlips = 0;
+    int row = game.getRow();
+    String[] grids = game.getGrids(); // 現在の盤面を取得
+    
+    int r = pos / row;
+    int c = pos % row;
+    int[] dx = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int[] dy = {-1, 0, 1, -1, 1, -1, 0, 1};
+    String opponent = color.equals("black") ? "white" : "black";
+
+    for (int d = 0; d < 8; d++) {
+        int x = r + dx[d];
+        int y = c + dy[d];
+        int count = 0;
+
+        // 相手の石が続く限り進む
+        while (x >= 0 && x < row && y >= 0 && y < row && grids[x * row + y].equals(opponent)) {
+            x += dx[d];
+            y += dy[d];
+            count++;
+        }
+
+        // その先に自分の石があれば、その方向の石をカウントに加算
+        if (count > 0 && x >= 0 && x < row && y >= 0 && y < row && grids[x * row + y].equals(color)) {
+            totalFlips += count;
+        }
+    }
+    return totalFlips;
+}
+	private void checkMyPass() {
+	    // 自分の番なのに置ける場所がない場合
+	    if (game.getTurn().equals(myColor)) {
+	        if (game.getValidMoves(myColor).isEmpty()) {
+				//CPUだから確認しない
+	            //JOptionPane.showMessageDialog(this, "置ける場所がないのでパスします。");
+	            //つけたし
+				String current = game.getTurn();
+				String opponent =current.equals("black") ? "white" : "black";
+				if (game.getValidMoves(current).isEmpty() && game.getValidMoves(opponent).isEmpty()) {
+					JOptionPane.showMessageDialog(this,game.getWinnerMessage());
+					return;
+				}
+				game.changeTurn();
+				sendMessage("pass");
+				updateDisp();
+	        }
+	    }
+	}
+	
+	public void updateDisp() {
+        String[] grids = game.getGrids();
+        // 自分の手番の時だけヒントを取得
+        java.util.List<Integer> hints = new java.util.ArrayList<>();
+        if (myColor.equals(game.getTurn())) {
+            hints = game.getValidMoves(myColor);
+        }
+
+        for (int i = 0; i < buttonArray.length; i++) {
+            buttonArray[i].setIcon(null); // 一旦クリア
+            if (grids[i].equals("black")) {
+                buttonArray[i].setIcon(blackIcon);
+            } else if (grids[i].equals("white")) {
+                buttonArray[i].setIcon(whiteIcon);
+            } else if (hints.contains(i)) {
+                buttonArray[i].setIcon(hintIcon); // ヒント（水色の丸）を表示
+            }else {
+                // 石もヒントもない場所は GreenFrame.jpg を表示
+                buttonArray[i].setIcon(boardIcon);
+            }
+        }
+
+        // 石の数と状態の更新
+        if (!myColor.equals("")) {
+            int myCnt = game.getCount(myColor);
+            String opColor = myColor.equals("black") ? "white" : "black";
+            int opCnt = game.getCount(opColor);
+            infoLabel.setText("あなた(" + myColor + "): " + myCnt + "  /  相手: " + opCnt);
+            
+            if (game.getTurn().equals(myColor)) {
+                resultLabel.setText("あなたの番です");
+                resultLabel.setForeground(Color.RED);
+            } else {
+                resultLabel.setText("相手の番です");
+                resultLabel.setForeground(Color.BLACK);
+            }
+        }
+    }	
+	
+	private void checkGameOver() {
+	    // 次の番の人が置ける場所があるか
+	    java.util.List<Integer> nextMoves = game.getValidMoves(game.getTurn());
+	    
+	    if (nextMoves.isEmpty()) {
+	        // 次の人が置けない場合、さらにその次の人（今の番の人）が置けるか確認
+	        String opponent = game.getTurn().equals("black") ? "white" : "black";
+	        java.util.List<Integer> opMoves = game.getValidMoves(opponent);
+	        
+	        if (opMoves.isEmpty()) {
+	            // 両者置けないのでゲーム終了
+	            String result = game.getWinnerMessage();
+	            //CPUのためいらない
+				//resultLabel.setText("対局終了！");
+	            //JOptionPane.showMessageDialog(this, result, "ゲーム終了", JOptionPane.INFORMATION_MESSAGE);
+	        }else {
+	            // 自分（game.getTurn()）が置けないことを確認
+	            if (game.getTurn().equals(myColor)) {
+	                JOptionPane.showMessageDialog(this, "置ける場所がないのでパスします。");
+	                sendMessage("pass"); // サーバに送信して相手に手番を回す
+	            }
+	        }
+	    }
+	}
+	
+	
+
+  	//マウスクリック時の処理
+    //CPUのためなし
+    /* 
+	public void mouseClicked(MouseEvent e) {
+        if (myColor.equals("") || !game.getTurn().equals(myColor)) return;
+
+        JButton theButton = (JButton)e.getComponent();
+        String command = theButton.getActionCommand();
+        
+        try {
+            int pos = Integer.parseInt(command);
+            // 自分の色で置けるかチェック
+            if (game.putStone(pos, myColor, false)) { // false=確認だけ
+                sendMessage(command); // サーバへ送信（受信した時に実際に置かれる）
+            }
+        } catch (NumberFormatException ex) {}
+    }*/
+	public void mouseEntered(MouseEvent e) {}//マウスがオブジェクトに入ったときの処理
+	public void mouseExited(MouseEvent e) {}//マウスがオブジェクトから出たときの処理
+	public void mousePressed(MouseEvent e) {}//マウスでオブジェクトを押したときの処理
+	public void mouseReleased(MouseEvent e) {}//マウスで押していたオブジェクトを離したときの処理
+
+	//テスト用のmain
+	public static void main(String args[]){
+		//ログイン処理
+        //CPU
+		/* 
+        String myName = JOptionPane.showInputDialog(null,"名前を入力してください","名前の入力",JOptionPane.QUESTION_MESSAGE);
+		if(myName.equals("")){
+			myName = "No name";//名前がないときは，"No name"とする
+		}*/
+        String myName="CPU3";
+		PlayerSample1 player = new PlayerSample1(); //プレイヤオブジェクトの用意(ログイン)
+		player.setName(myName); //名前を受付
+		OthelloSample1 game = new OthelloSample1(); //オセロオブジェクトを用意
+		CPU2 oclient = new CPU2(game, player); //引数としてオセロオブジェクトを渡す
+		//CPUは見えなくてもいい
+		oclient.setVisible(false);
+		oclient.connectServer("localhost", 10000);
+	}
+}
